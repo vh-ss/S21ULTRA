@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Трекер напрямку та швидкості вітру для Донецької та Харківської областей. Поточні дані та прогноз." />
+  <title>Вітер · Донецька та Харківська області</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar__inner">
+      <div class="brand">
+        <span class="brand__icon">🌬️</span>
+        <div>
+          <h1 class="brand__title">Трекер вітру</h1>
+          <p class="brand__sub">Донецька та Харківська області</p>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="visually-hidden" for="locationSelect">Локація</label>
+        <select id="locationSelect" class="select"></select>
+        <button id="refreshBtn" class="btn-icon" title="Оновити" aria-label="Оновити">⟳</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main">
+    <!-- Статус / помилки -->
+    <p id="status" class="status" role="status"></p>
+
+    <!-- Поточні умови -->
+    <section class="current card" id="currentCard" aria-live="polite">
+      <div class="current__compass">
+        <div class="compass">
+          <span class="compass__label compass__label--n">Пн</span>
+          <span class="compass__label compass__label--e">Сх</span>
+          <span class="compass__label compass__label--s">Пд</span>
+          <span class="compass__label compass__label--w">Зх</span>
+          <div class="compass__arrow" id="compassArrow">
+            <div class="compass__arrow-head"></div>
+            <div class="compass__arrow-tail"></div>
+          </div>
+          <div class="compass__center"></div>
+        </div>
+      </div>
+      <div class="current__data">
+        <p class="current__place" id="currentPlace">—</p>
+        <div class="current__speed">
+          <span class="current__speed-num" id="currentSpeed">–</span>
+          <span class="current__speed-unit">м/с</span>
+        </div>
+        <div class="current__meta">
+          <div class="meta">
+            <span class="meta__label">Напрямок</span>
+            <span class="meta__value" id="currentDir">–</span>
+          </div>
+          <div class="meta">
+            <span class="meta__label">Пориви</span>
+            <span class="meta__value" id="currentGust">– м/с</span>
+          </div>
+          <div class="meta">
+            <span class="meta__label">Сила</span>
+            <span class="meta__value" id="currentForce">–</span>
+          </div>
+        </div>
+        <p class="current__updated" id="currentUpdated"></p>
+      </div>
+    </section>
+
+    <!-- Погодинний прогноз -->
+    <section class="block">
+      <h2 class="block__title">Найближчі 24 години</h2>
+      <div class="hourly" id="hourly"></div>
+    </section>
+
+    <!-- Прогноз на дні -->
+    <section class="block">
+      <h2 class="block__title">Прогноз по днях</h2>
+      <div class="daily" id="daily"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Дані: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Швидкість у м/с · Напрямок — звідки дме вітер</p>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+/* ===== Змінні ===== */
+:root {
+  --bg: #0c1018;
+  --bg-soft: #141a26;
+  --card: #1a2230;
+  --card-2: #212c3e;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #eef2f8;
+  --muted: #8b97ab;
+  --accent: #38bdf8;
+  --accent-2: #22d3a6;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 16px;
+  --maxw: 980px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #16202f, var(--bg));
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 18px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ===== Верхня панель ===== */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(12, 16, 24, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar__inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 12px 18px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand__icon { font-size: 1.8rem; }
+.brand__title { font-size: 1.15rem; font-weight: 700; }
+.brand__sub { font-size: 0.8rem; color: var(--muted); }
+
+.controls { display: flex; align-items: center; gap: 10px; }
+.select {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; font-size: 0.92rem; cursor: pointer; max-width: 60vw;
+}
+.select:focus { outline: none; border-color: var(--accent); }
+.btn-icon {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  width: 40px; height: 40px; font-size: 1.2rem; cursor: pointer;
+  transition: transform .3s, border-color .2s;
+}
+.btn-icon:hover { border-color: var(--accent); }
+.btn-icon.is-spinning { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Загальне ===== */
+.main { padding: 22px 18px 60px; }
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 14px 40px rgba(0,0,0,.35);
+}
+.status { text-align: center; color: var(--muted); padding: 6px 0; min-height: 24px; font-size: .9rem; }
+.status.is-error { color: var(--danger); }
+
+/* ===== Поточні умови ===== */
+.current {
+  display: grid; grid-template-columns: auto 1fr; gap: 28px;
+  align-items: center; padding: 26px 28px;
+}
+
+/* Компас */
+.compass {
+  position: relative; width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--card-2), #10151f);
+  border: 2px solid var(--line);
+  box-shadow: inset 0 0 30px rgba(0,0,0,.5);
+}
+.compass__label {
+  position: absolute; font-size: .8rem; color: var(--muted); font-weight: 600;
+  transform: translate(-50%, -50%);
+}
+.compass__label--n { top: 14px; left: 50%; color: var(--danger); }
+.compass__label--s { bottom: 14px; left: 50%; top: auto; transform: translate(-50%, 50%); }
+.compass__label--e { right: 14px; top: 50%; left: auto; transform: translate(50%, -50%); }
+.compass__label--w { left: 14px; top: 50%; transform: translate(-50%, -50%); }
+
+.compass__arrow {
+  position: absolute; top: 50%; left: 50%;
+  width: 0; height: 0;
+  transform: translate(-50%, -50%) rotate(0deg);
+  transition: transform .8s cubic-bezier(.2,.8,.2,1);
+}
+.compass__arrow-head, .compass__arrow-tail {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent;
+}
+.compass__arrow-head { bottom: 2px; border-bottom: 56px solid var(--accent); }
+.compass__arrow-tail { top: 2px; border-top: 56px solid rgba(255,255,255,.18); }
+.compass__center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent-2); box-shadow: 0 0 12px var(--accent-2);
+}
+
+/* Дані */
+.current__place { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
+.current__speed { display: flex; align-items: baseline; gap: 8px; }
+.current__speed-num { font-size: 3.4rem; font-weight: 800; line-height: 1; }
+.current__speed-unit { font-size: 1.1rem; color: var(--muted); }
+.current__meta { display: flex; gap: 26px; margin-top: 18px; flex-wrap: wrap; }
+.meta { display: flex; flex-direction: column; }
+.meta__label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.meta__value { font-size: 1.05rem; font-weight: 600; margin-top: 2px; }
+.current__updated { margin-top: 16px; font-size: .8rem; color: var(--muted); }
+
+/* ===== Блоки ===== */
+.block { margin-top: 30px; }
+.block__title { font-size: 1.05rem; margin-bottom: 14px; font-weight: 700; }
+
+/* Погодинний */
+.hourly {
+  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+}
+.hour {
+  flex: 0 0 auto; width: 92px; scroll-snap-align: start;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 8px; text-align: center;
+}
+.hour__time { font-size: .82rem; color: var(--muted); }
+.hour__arrow { font-size: 1.5rem; margin: 8px 0; display: inline-block; transition: transform .3s; }
+.hour__speed { font-weight: 700; font-size: 1.05rem; }
+.hour__unit { font-size: .72rem; color: var(--muted); }
+.hour__gust { font-size: .72rem; color: var(--warn); margin-top: 4px; }
+
+/* Денний */
+.daily { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.day {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.day__name { font-weight: 700; text-transform: capitalize; }
+.day__row { display: flex; align-items: center; justify-content: space-between; font-size: .9rem; }
+.day__row span:first-child { color: var(--muted); }
+.day__arrow { font-size: 1.3rem; }
+
+/* Колірні мітки сили вітру */
+.f-calm { color: var(--accent-2); }
+.f-mod { color: var(--accent); }
+.f-strong { color: var(--warn); }
+.f-storm { color: var(--danger); }
+
+/* ===== Підвал ===== */
+.footer { border-top: 1px solid var(--line); padding: 22px 0; margin-top: 30px; }
+.footer p { text-align: center; color: var(--muted); font-size: .82rem; }
+.footer a { color: var(--accent); text-decoration: none; }
+
+/* ===== Адаптив ===== */
+@media (max-width: 620px) {
+  .current { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .current__meta { justify-content: center; }
+  .current__speed { justify-content: center; }
+  .compass { width: 160px; height: 160px; }
+  .compass__arrow-head { border-bottom-width: 48px; }
+  .compass__arrow-tail { border-top-width: 48px; }
+  .brand__title { font-size: 1rem; }
+}
