@@ -122,6 +122,8 @@ body {
 }
 .btn:hover { transform: translateY(-1px); }
 .btn--primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #06212a; }
+.btn--ghost { background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); }
+.btn--ghost:hover { border-color: var(--accent); }
 .btn--full { width: 100%; }
 
 /* ===== Модальні вікна ===== */
@@ -193,6 +195,7 @@ body {
   border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: .85rem; cursor: pointer;
 }
 .result-item__add:disabled { opacity: .5; cursor: default; }
+#cityMapBtn { margin-top: 10px; }
 .search-note { font-size: .82rem; color: var(--muted); padding: 6px 2px; }
 .search-note.is-error { color: var(--danger); }
 

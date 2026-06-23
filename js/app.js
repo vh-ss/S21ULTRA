@@ -177,6 +177,7 @@ const els = {
   citySearchInput: document.getElementById("citySearchInput"),
   citySearchBtn: document.getElementById("citySearchBtn"),
   citySearchResults: document.getElementById("citySearchResults"),
+  cityMapBtn: document.getElementById("cityMapBtn"),
   citiesManageList: document.getElementById("citiesManageList"),
   brandSub: document.getElementById("brandSub"),
   mapHint: document.getElementById("mapHint"),
@@ -195,6 +196,7 @@ const els = {
 };
 
 let map, markersLayer, tileLayer;
+let mapPickActive = false;
 
 // ---- Тема ----
 const THEME_KEY = "windTheme";
@@ -341,6 +343,26 @@ function initMap() {
     maxZoom: 18,
   }).addTo(map);
   markersLayer = L.layerGroup().addTo(map);
+
+  // Додавання міста кліком по мапі
+  map.on("click", (e) => {
+    if (!mapPickActive) return;
+    const name = (window.prompt("Назва нової точки:") || "").trim();
+    if (name) addCustomCity({ name, latitude: e.latlng.lat, longitude: e.latlng.lng });
+    stopMapPick();
+  });
+}
+
+function startMapPick() {
+  closeModal(els.citiesModal);
+  mapPickActive = true;
+  map.getContainer().style.cursor = "crosshair";
+  els.mapHint.textContent = "Натисніть на мапі, щоб додати місто (Esc — скасувати)";
+}
+function stopMapPick() {
+  mapPickActive = false;
+  if (map) map.getContainer().style.cursor = "";
+  els.mapHint.textContent = "Натисніть на місто, щоб побачити деталі вітру";
 }
 
 async function renderMarkers() {
@@ -538,7 +560,7 @@ async function handleCitySearch() {
   try {
     const results = await geocode(name);
     if (!results.length) {
-      els.citySearchResults.innerHTML = `<p class="search-note">Нічого не знайдено</p>`;
+      els.citySearchResults.innerHTML = `<p class="search-note">Нічого не знайдено. Спробуйте іншу назву або додайте точку на мапі ⬇</p>`;
       return;
     }
     const existing = new Set(getCustomCities().map((c) => c.name));
@@ -644,6 +666,7 @@ function init() {
 
   els.citiesBtn.addEventListener("click", openCities);
   els.citySearchBtn.addEventListener("click", handleCitySearch);
+  els.cityMapBtn.addEventListener("click", startMapPick);
   els.citySearchInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleCitySearch();
   });
@@ -659,6 +682,7 @@ function init() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (mapPickActive) stopMapPick();
       closeModal(els.settingsModal);
       closeModal(els.citiesModal);
       closeModal(els.detailModal);
