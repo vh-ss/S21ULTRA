@@ -172,31 +172,63 @@ body {
 /* ===== Поточні умови ===== */
 .current { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: center; padding: 6px 0 10px; }
 
+/* Металеве кільце */
 .compass {
-  position: relative; width: 170px; height: 170px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, var(--card-2), #10151f);
-  border: 2px solid var(--line); box-shadow: inset 0 0 30px rgba(0,0,0,.5);
+  position: relative; width: 190px; height: 190px; border-radius: 50%;
+  padding: 9px;
+  background: conic-gradient(from 140deg,
+    #6b7280, #e9eef5, #aab2bf, #f6f8fb, #7c8595, #d7dde6, #9aa3b0, #f6f8fb, #6b7280);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.35),
+    inset 0 2px 3px rgba(255, 255, 255, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.35);
 }
-.compass__label { position: absolute; font-size: .8rem; color: var(--muted); font-weight: 600; transform: translate(-50%, -50%); }
-.compass__label--n { top: 14px; left: 50%; color: var(--danger); }
-.compass__label--s { bottom: 14px; left: 50%; top: auto; transform: translate(-50%, 50%); }
-.compass__label--e { right: 14px; top: 50%; left: auto; transform: translate(50%, -50%); }
-.compass__label--w { left: 14px; top: 50%; transform: translate(-50%, -50%); }
-.compass__arrow {
-  position: absolute; top: 50%; left: 50%; width: 0; height: 0;
-  transform: translate(-50%, -50%) rotate(0deg);
-  transition: transform .8s cubic-bezier(.2,.8,.2,1);
+/* Циферблат */
+.compass__face {
+  position: relative; width: 100%; height: 100%; border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.14), transparent 55%),
+    radial-gradient(circle at 50% 118%, rgba(0, 0, 0, 0.32), transparent 62%),
+    radial-gradient(circle at 50% 48%, var(--card-2), var(--card));
+  box-shadow:
+    inset 0 3px 9px rgba(0, 0, 0, 0.4),
+    inset 0 -2px 6px rgba(255, 255, 255, 0.06);
 }
-.compass__arrow-head, .compass__arrow-tail {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent;
+.compass__dial { position: absolute; inset: 0; width: 100%; height: 100%; }
+.compass__dial .tick { stroke: var(--muted); stroke-width: 1.4; opacity: .35; }
+.compass__dial .tick--mid { stroke-width: 2; opacity: .55; }
+.compass__dial .tick--major { stroke: var(--accent); stroke-width: 2.6; opacity: .9; }
+
+.compass__rose {
+  position: absolute; font-size: .8rem; font-weight: 800; letter-spacing: .4px;
+  color: var(--muted); transform: translate(-50%, -50%); z-index: 2;
 }
-.compass__arrow-head { bottom: 2px; border-bottom: 52px solid var(--accent); }
-.compass__arrow-tail { top: 2px; border-top: 52px solid rgba(255,255,255,.18); }
-.compass__center {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  width: 14px; height: 14px; border-radius: 50%;
-  background: var(--accent-2); box-shadow: 0 0 12px var(--accent-2);
+.compass__rose--n { top: 15px; left: 50%; color: var(--danger); }
+.compass__rose--s { bottom: 15px; top: auto; left: 50%; transform: translate(-50%, 50%); }
+.compass__rose--e { right: 13px; top: 50%; left: auto; transform: translate(50%, -50%); }
+.compass__rose--w { left: 13px; top: 50%; transform: translate(-50%, -50%); }
+
+/* Стрілка-голка */
+.compass__needle {
+  position: absolute; inset: 0; z-index: 3;
+  transition: transform .8s cubic-bezier(.2, .8, .2, 1);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+}
+.compass__needle::before, .compass__needle::after {
+  content: ""; position: absolute; left: 50%; width: 0; height: 0;
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  transform: translateX(-50%);
+}
+.compass__needle::before { bottom: 50%; border-bottom: 64px solid var(--accent); }   /* вістря — куди дме */
+.compass__needle::after  { top: 50%; border-top: 64px solid #94a3b8; }                /* хвіст */
+
+/* Полірований центр */
+.compass__cap {
+  position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; z-index: 4;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f8fafc, #aeb6c2 55%, #475569);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.7);
 }
 
 .current__speed { display: flex; align-items: baseline; gap: 8px; }

@@ -75,15 +75,15 @@
         <section class="current">
           <div class="current__compass">
             <div class="compass">
-              <span class="compass__label compass__label--n">Пн</span>
-              <span class="compass__label compass__label--e">Сх</span>
-              <span class="compass__label compass__label--s">Пд</span>
-              <span class="compass__label compass__label--w">Зх</span>
-              <div class="compass__arrow" id="compassArrow">
-                <div class="compass__arrow-head"></div>
-                <div class="compass__arrow-tail"></div>
+              <div class="compass__face">
+                <svg class="compass__dial" id="compassDial" viewBox="0 0 200 200" aria-hidden="true"></svg>
+                <span class="compass__rose compass__rose--n">Пн</span>
+                <span class="compass__rose compass__rose--e">Сх</span>
+                <span class="compass__rose compass__rose--s">Пд</span>
+                <span class="compass__rose compass__rose--w">Зх</span>
+                <div class="compass__needle" id="compassArrow"></div>
+                <div class="compass__cap"></div>
               </div>
-              <div class="compass__center"></div>
             </div>
           </div>
           <div class="current__data">

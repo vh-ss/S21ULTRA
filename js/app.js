@@ -260,6 +260,25 @@ async function fetchCurrentBatch(points) {
   );
 }
 
+// ---- Шкала компаса (поділки кожні 5°) ----
+function buildCompassDial() {
+  const svg = document.getElementById("compassDial");
+  if (!svg) return;
+  const cx = 100, cy = 100, rOuter = 94;
+  let html = "";
+  for (let a = 0; a < 360; a += 5) {
+    const major = a % 90 === 0;
+    const mid = a % 30 === 0;
+    const len = major ? 16 : mid ? 11 : 6;
+    const rad = (a * Math.PI) / 180;
+    const x1 = cx + rOuter * Math.sin(rad), y1 = cy - rOuter * Math.cos(rad);
+    const x2 = cx + (rOuter - len) * Math.sin(rad), y2 = cy - (rOuter - len) * Math.cos(rad);
+    const cls = major ? "tick tick--major" : mid ? "tick tick--mid" : "tick";
+    html += `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />`;
+  }
+  svg.innerHTML = html;
+}
+
 // ---- Мапа ----
 function initMap() {
   map = L.map("map", { zoomControl: true, attributionControl: true }).setView([48.7, 37.0], 7);
@@ -331,7 +350,7 @@ function renderCurrent(data) {
   els.force.textContent = force.txt;
   els.force.className = `meta__value ${force.cls}`;
   // Стрілка показує, куди дме вітер (напрямок руху повітря)
-  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m + 180}deg)`;
+  els.arrow.style.transform = `rotate(${c.wind_direction_10m + 180}deg)`;
   const t = new Date(c.time);
   els.updated.textContent = `Оновлено: ${t.toLocaleString("uk-UA", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 }
@@ -449,6 +468,7 @@ function handleSaveSettings() {
 
 // ---- Ініціалізація ----
 function init() {
+  buildCompassDial();
   initMap();
   applyTheme(getTheme());
   renderMarkers();
