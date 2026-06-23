@@ -113,7 +113,9 @@ const COMPASS_16 = [
 function dirName(deg) {
   return COMPASS_16[Math.round((deg % 360) / 22.5) % 16];
 }
-const ARROWS_8 = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"];
+// Стрілка вказує НА ДЖЕРЕЛО вітру (звідки дме), як флюгер:
+// 0° (з півночі) → ↑, 90° (зі сходу) → →, 180° (з півдня) → ↓, 270° (із заходу) → ←
+const ARROWS_8 = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
 function windArrow(fromDeg) {
   return ARROWS_8[Math.round((fromDeg % 360) / 45) % 8];
 }
@@ -209,7 +211,8 @@ function renderCurrent(data) {
   els.gust.textContent = `${fmt(c.wind_gusts_10m)} м/с`;
   els.force.textContent = force.txt;
   els.force.className = `meta__value ${force.cls}`;
-  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m + 180}deg)`;
+  // Стрілка дивиться на джерело вітру (звідки дме)
+  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m}deg)`;
   const t = new Date(c.time);
   els.updated.textContent = `Оновлено: ${t.toLocaleString("uk-UA", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 }
