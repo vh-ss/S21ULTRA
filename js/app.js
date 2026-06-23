@@ -1,8 +1,7 @@
-// ===== Трекер вітру: Донецька та Харківська області =====
+// ===== Мапа вітру: інтерактивна мапа з деталізацією по містах =====
 "use strict";
 
 // Локації, згруповані за областями.
-// Донецька та Харківська — основні; решта — суміжні області.
 const LOCATIONS = [
   {
     group: "Харківська область",
@@ -77,14 +76,24 @@ const LOCATIONS = [
 ];
 
 const API = "https://api.open-meteo.com/v1/forecast";
+const MAX_OBLASTS = 3;
+const DEFAULT_OBLASTS = ["Харківська область", "Донецька область"];
+const STORAGE_KEY = "windOblasts";
 
 // Елементи DOM
 const els = {
-  select: document.getElementById("locationSelect"),
-  refresh: document.getElementById("refreshBtn"),
-  status: document.getElementById("status"),
+  settingsBtn: document.getElementById("settingsBtn"),
+  settingsModal: document.getElementById("settingsModal"),
+  oblastList: document.getElementById("oblastList"),
+  oblastCounter: document.getElementById("oblastCounter"),
+  saveSettings: document.getElementById("saveSettings"),
+  brandSub: document.getElementById("brandSub"),
+  mapHint: document.getElementById("mapHint"),
+  detailModal: document.getElementById("detailModal"),
+  detailTitle: document.getElementById("detailTitle"),
+  detailStatus: document.getElementById("detailStatus"),
+  detailBody: document.getElementById("detailBody"),
   arrow: document.getElementById("compassArrow"),
-  place: document.getElementById("currentPlace"),
   speed: document.getElementById("currentSpeed"),
   dir: document.getElementById("currentDir"),
   gust: document.getElementById("currentGust"),
@@ -94,27 +103,20 @@ const els = {
   daily: document.getElementById("daily"),
 };
 
-// ---- Допоміжні функції ----
+let map, markersLayer;
 
-// Назва напрямку (звідки дме) за градусами
+// ---- Допоміжні функції ----
 const COMPASS_16 = [
   "Пн", "Пн-ПнСх", "ПнСх", "Сх-ПнСх", "Сх", "Сх-ПдСх", "ПдСх", "Пд-ПдСх",
   "Пд", "Пд-ПдЗх", "ПдЗх", "Зх-ПдЗх", "Зх", "Зх-ПнЗх", "ПнЗх", "Пн-ПнЗх",
 ];
 function dirName(deg) {
-  const i = Math.round(((deg % 360) / 22.5)) % 16;
-  return COMPASS_16[i];
+  return COMPASS_16[Math.round((deg % 360) / 22.5) % 16];
 }
-
-// Стрілка-емодзі, що показує куди ДМЕ вітер (протилежно до "звідки")
 const ARROWS_8 = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"];
 function windArrow(fromDeg) {
-  // fromDeg = звідки дме. Куди дме = +180. Емодзі ↑ означає "на північ".
-  const i = Math.round((fromDeg % 360) / 45) % 8;
-  return ARROWS_8[i];
+  return ARROWS_8[Math.round((fromDeg % 360) / 45) % 8];
 }
-
-// Класифікація сили вітру за шкалою Бофорта (м/с)
 function beaufort(ms) {
   if (ms < 1.6) return { txt: "Штиль", cls: "f-calm" };
   if (ms < 3.4) return { txt: "Легкий", cls: "f-calm" };
@@ -126,30 +128,59 @@ function beaufort(ms) {
   if (ms < 20.8) return { txt: "Дуже міцний", cls: "f-storm" };
   return { txt: "Шторм", cls: "f-storm" };
 }
-
 function fmt(n, d = 1) {
   return (Math.round(n * 10 ** d) / 10 ** d).toLocaleString("uk-UA");
 }
 
-function setStatus(msg, isError = false) {
-  els.status.textContent = msg || "";
-  els.status.classList.toggle("is-error", isError);
+// ---- Налаштування областей ----
+function getSelectedOblasts() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(s) && s.length) return s.slice(0, MAX_OBLASTS);
+  } catch (e) { /* ignore */ }
+  return DEFAULT_OBLASTS.slice();
+}
+function saveSelectedOblasts(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, MAX_OBLASTS)));
 }
 
-// ---- Заповнення селектора локацій ----
-function buildSelect() {
-  LOCATIONS.forEach((g) => {
-    const og = document.createElement("optgroup");
-    og.label = g.group;
+// ---- Мапа ----
+function initMap() {
+  map = L.map("map", { zoomControl: true, attributionControl: true }).setView([48.7, 37.0], 7);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '© OpenStreetMap, © CARTO',
+    subdomains: "abcd",
+    maxZoom: 18,
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+function renderMarkers() {
+  markersLayer.clearLayers();
+  const selected = getSelectedOblasts();
+  const groups = LOCATIONS.filter((g) => selected.includes(g.group));
+  const bounds = [];
+
+  groups.forEach((g) => {
     g.points.forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = `${p.lat},${p.lon}`;
-      opt.textContent = p.name;
-      opt.dataset.name = p.name;
-      og.appendChild(opt);
+      const icon = L.divIcon({
+        className: "city-marker",
+        html: `<span class="city-marker__dot"></span><span class="city-marker__label">${p.name}</span>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const m = L.marker([p.lat, p.lon], { icon, title: p.name }).addTo(markersLayer);
+      m.on("click", () => openDetail(p));
+      bounds.push([p.lat, p.lon]);
     });
-    els.select.appendChild(og);
   });
+
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 9 });
+  }
+
+  // Підпис у шапці
+  els.brandSub.textContent = selected.join(" · ");
 }
 
 // ---- Запит даних ----
@@ -169,119 +200,160 @@ async function fetchWind(lat, lon) {
   return res.json();
 }
 
-// ---- Рендер поточних умов ----
-function renderCurrent(data, placeName) {
+// ---- Рендер деталізації ----
+function renderCurrent(data) {
   const c = data.current;
-  const speed = c.wind_speed_10m;
-  const deg = c.wind_direction_10m;
-  const gust = c.wind_gusts_10m;
-  const force = beaufort(speed);
-
-  els.place.textContent = placeName;
-  els.speed.textContent = fmt(speed);
-  els.dir.textContent = `${dirName(deg)} (${Math.round(deg)}°)`;
-  els.gust.textContent = `${fmt(gust)} м/с`;
+  const force = beaufort(c.wind_speed_10m);
+  els.speed.textContent = fmt(c.wind_speed_10m);
+  els.dir.textContent = `${dirName(c.wind_direction_10m)} (${Math.round(c.wind_direction_10m)}°)`;
+  els.gust.textContent = `${fmt(c.wind_gusts_10m)} м/с`;
   els.force.textContent = force.txt;
   els.force.className = `meta__value ${force.cls}`;
-
-  // Стрілка показує, КУДИ дме вітер: deg = звідки, тож обертаємо на deg+180
-  els.arrow.style.transform = `translate(-50%, -50%) rotate(${deg + 180}deg)`;
-
+  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m + 180}deg)`;
   const t = new Date(c.time);
   els.updated.textContent = `Оновлено: ${t.toLocaleString("uk-UA", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 }
 
-// ---- Рендер погодинного прогнозу (наступні 24 год) ----
 function renderHourly(data) {
   const h = data.hourly;
   const now = Date.now();
   const rows = [];
-  for (let i = 0; i < h.time.length; i++) {
-    const t = new Date(h.time[i]).getTime();
-    if (t >= now - 30 * 60 * 1000) rows.push(i);
-    if (rows.length >= 24) break;
+  for (let i = 0; i < h.time.length && rows.length < 24; i++) {
+    if (new Date(h.time[i]).getTime() >= now - 30 * 60 * 1000) rows.push(i);
   }
-  els.hourly.innerHTML = rows
-    .map((i) => {
-      const t = new Date(h.time[i]);
-      const speed = h.wind_speed_10m[i];
-      const deg = h.wind_direction_10m[i];
-      const gust = h.wind_gusts_10m[i];
-      const f = beaufort(speed);
-      return `
-        <div class="hour">
-          <div class="hour__time">${t.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}</div>
-          <div class="hour__arrow ${f.cls}" title="${dirName(deg)}">${windArrow(deg)}</div>
-          <div class="hour__speed ${f.cls}">${fmt(speed)}</div>
-          <div class="hour__unit">м/с</div>
-          <div class="hour__gust">↟ ${fmt(gust)}</div>
-        </div>`;
-    })
-    .join("");
+  els.hourly.innerHTML = rows.map((i) => {
+    const t = new Date(h.time[i]);
+    const f = beaufort(h.wind_speed_10m[i]);
+    return `
+      <div class="hour">
+        <div class="hour__time">${t.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}</div>
+        <div class="hour__arrow ${f.cls}" title="${dirName(h.wind_direction_10m[i])}">${windArrow(h.wind_direction_10m[i])}</div>
+        <div class="hour__speed ${f.cls}">${fmt(h.wind_speed_10m[i])}</div>
+        <div class="hour__unit">м/с</div>
+        <div class="hour__gust">↟ ${fmt(h.wind_gusts_10m[i])}</div>
+      </div>`;
+  }).join("");
 }
 
-// ---- Рендер денного прогнозу ----
 function renderDaily(data) {
   const d = data.daily;
-  els.daily.innerHTML = d.time
-    .map((day, i) => {
-      const dt = new Date(day);
-      const name = dt.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "short" });
-      const maxSpeed = d.wind_speed_10m_max[i];
-      const maxGust = d.wind_gusts_10m_max[i];
-      const deg = d.wind_direction_10m_dominant[i];
-      const f = beaufort(maxSpeed);
-      return `
-        <div class="day">
-          <div class="day__name">${name}</div>
-          <div class="day__row"><span>Макс. вітер</span><b class="${f.cls}">${fmt(maxSpeed)} м/с</b></div>
-          <div class="day__row"><span>Пориви</span><b class="f-strong">${fmt(maxGust)} м/с</b></div>
-          <div class="day__row"><span>Напрямок</span><b><span class="day__arrow">${windArrow(deg)}</span> ${dirName(deg)}</b></div>
-        </div>`;
-    })
-    .join("");
+  els.daily.innerHTML = d.time.map((day, i) => {
+    const dt = new Date(day);
+    const name = dt.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "short" });
+    const f = beaufort(d.wind_speed_10m_max[i]);
+    return `
+      <div class="day">
+        <div class="day__name">${name}</div>
+        <div class="day__row"><span>Макс. вітер</span><b class="${f.cls}">${fmt(d.wind_speed_10m_max[i])} м/с</b></div>
+        <div class="day__row"><span>Пориви</span><b class="f-strong">${fmt(d.wind_gusts_10m_max[i])} м/с</b></div>
+        <div class="day__row"><span>Напрямок</span><b><span class="day__arrow">${windArrow(d.wind_direction_10m_dominant[i])}</span> ${dirName(d.wind_direction_10m_dominant[i])}</b></div>
+      </div>`;
+  }).join("");
 }
 
-// ---- Головна функція завантаження ----
-let isLoading = false;
-async function load() {
-  if (isLoading) return;
-  isLoading = true;
-  els.refresh.classList.add("is-spinning");
-  setStatus("Завантаження даних…");
-
-  const opt = els.select.selectedOptions[0];
-  const [lat, lon] = els.select.value.split(",").map(Number);
-  const placeName = opt ? opt.dataset.name : "—";
+// ---- Відкриття вікна деталізації ----
+async function openDetail(point) {
+  els.detailTitle.textContent = point.name;
+  els.detailBody.hidden = true;
+  els.detailStatus.textContent = "Завантаження даних…";
+  els.detailStatus.classList.remove("is-error");
+  openModal(els.detailModal);
 
   try {
-    const data = await fetchWind(lat, lon);
-    renderCurrent(data, placeName);
+    const data = await fetchWind(point.lat, point.lon);
+    renderCurrent(data);
     renderHourly(data);
     renderDaily(data);
-    setStatus("");
-    localStorage.setItem("windLocation", els.select.value);
+    els.detailStatus.textContent = "";
+    els.detailBody.hidden = false;
   } catch (err) {
     console.error(err);
-    setStatus("Не вдалося завантажити дані. Перевірте зʼєднання та спробуйте оновити.", true);
-  } finally {
-    isLoading = false;
-    els.refresh.classList.remove("is-spinning");
+    els.detailStatus.textContent = "Не вдалося завантажити дані. Перевірте зʼєднання.";
+    els.detailStatus.classList.add("is-error");
   }
+}
+
+// ---- Модальні вікна ----
+function openModal(modal) {
+  modal.hidden = false;
+  if (map) setTimeout(() => map.invalidateSize(), 50);
+}
+function closeModal(modal) { modal.hidden = true; }
+
+// ---- Налаштування: побудова списку ----
+function buildSettings() {
+  const selected = getSelectedOblasts();
+  els.oblastList.innerHTML = LOCATIONS.map((g) => {
+    const checked = selected.includes(g.group);
+    return `
+      <label class="oblast-item ${checked ? "is-checked" : ""}">
+        <input type="checkbox" value="${g.group}" ${checked ? "checked" : ""} />
+        <span>${g.group}</span>
+        <small>${g.points.length} міст</small>
+      </label>`;
+  }).join("");
+  updateOblastState();
+
+  els.oblastList.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener("change", updateOblastState);
+  });
+}
+
+function updateOblastState() {
+  const boxes = [...els.oblastList.querySelectorAll('input[type="checkbox"]')];
+  const checkedCount = boxes.filter((b) => b.checked).length;
+
+  boxes.forEach((b) => {
+    const item = b.closest(".oblast-item");
+    item.classList.toggle("is-checked", b.checked);
+    const disable = !b.checked && checkedCount >= MAX_OBLASTS;
+    b.disabled = disable;
+    item.classList.toggle("is-disabled", disable);
+  });
+
+  els.oblastCounter.textContent = `Обрано ${checkedCount} з ${MAX_OBLASTS}`;
+  els.oblastCounter.classList.toggle("is-max", checkedCount >= MAX_OBLASTS);
+  els.saveSettings.disabled = checkedCount === 0;
+  els.saveSettings.style.opacity = checkedCount === 0 ? ".5" : "1";
+}
+
+function handleSaveSettings() {
+  const chosen = [...els.oblastList.querySelectorAll('input[type="checkbox"]:checked')].map((b) => b.value);
+  if (!chosen.length) return;
+  saveSelectedOblasts(chosen);
+  renderMarkers();
+  closeModal(els.settingsModal);
 }
 
 // ---- Ініціалізація ----
 function init() {
-  buildSelect();
-  const saved = localStorage.getItem("windLocation");
-  if (saved && [...els.select.options].some((o) => o.value === saved)) {
-    els.select.value = saved;
+  initMap();
+  renderMarkers();
+
+  els.settingsBtn.addEventListener("click", () => {
+    buildSettings();
+    openModal(els.settingsModal);
+  });
+  els.saveSettings.addEventListener("click", handleSaveSettings);
+
+  // Закриття модалок (хрестик, фон)
+  document.querySelectorAll("[data-close]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const which = el.dataset.close;
+      closeModal(which === "settings" ? els.settingsModal : els.detailModal);
+    });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeModal(els.settingsModal);
+      closeModal(els.detailModal);
+    }
+  });
+
+  // Якщо області ще не обрані — підказати відкрити налаштування
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    els.mapHint.textContent = "Натисніть ⚙, щоб обрати області, або клікніть на місто";
   }
-  els.select.addEventListener("change", load);
-  els.refresh.addEventListener("click", load);
-  load();
-  // Автооновлення кожні 10 хвилин
-  setInterval(load, 10 * 60 * 1000);
 }
 
 document.addEventListener("DOMContentLoaded", init);
