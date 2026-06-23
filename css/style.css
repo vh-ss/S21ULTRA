@@ -11,7 +11,24 @@
   --accent-2: #22d3a6;
   --warn: #fbbf24;
   --danger: #f87171;
+  --panel: rgba(12, 16, 24, 0.9);
   --radius: 16px;
+}
+
+/* Світла тема */
+:root[data-theme="light"] {
+  --bg: #eef2f7;
+  --bg-soft: #ffffff;
+  --card: #ffffff;
+  --card-2: #f3f6fa;
+  --line: rgba(15, 23, 42, 0.12);
+  --text: #16202e;
+  --muted: #5b6678;
+  --accent: #0284c7;
+  --accent-2: #0d9488;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --panel: rgba(255, 255, 255, 0.92);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -31,7 +48,7 @@ body {
 /* ===== Верхня панель ===== */
 .topbar {
   flex: 0 0 auto; z-index: 1100;
-  background: rgba(12, 16, 24, 0.92);
+  background: var(--panel);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
 }
@@ -44,19 +61,22 @@ body {
 .brand__title { font-size: 1.15rem; font-weight: 700; }
 .brand__sub { font-size: 0.8rem; color: var(--muted); }
 
+.topbar__controls { display: flex; gap: 10px; }
 .btn-icon {
   background: var(--card); color: var(--text);
   border: 1px solid var(--line); border-radius: 10px;
   width: 42px; height: 42px; font-size: 1.25rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   transition: border-color .2s, transform .2s;
 }
-.btn-icon:hover { border-color: var(--accent); transform: rotate(45deg); }
+.btn-icon:hover { border-color: var(--accent); }
+#settingsBtn:hover { transform: rotate(45deg); }
 
 /* ===== Мапа ===== */
 #map { flex: 1 1 auto; width: 100%; background: #0c1018; }
 .map-hint {
   position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-  z-index: 600; background: rgba(12,16,24,.85); backdrop-filter: blur(6px);
+  z-index: 600; background: var(--panel); backdrop-filter: blur(6px);
   border: 1px solid var(--line); color: var(--muted);
   padding: 8px 16px; border-radius: 999px; font-size: .82rem;
   pointer-events: none; max-width: 90vw; text-align: center;
@@ -75,15 +95,16 @@ body {
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 .city-marker__label {
-  display: block; margin-top: 1px; font-size: .72rem; font-weight: 600;
-  color: #fff; text-shadow: 0 1px 4px #000, 0 0 6px #000; white-space: nowrap;
-  text-align: center; transform: translateX(-50%); margin-left: 22px;
+  display: block; margin-top: 1px; font-size: .72rem; font-weight: 700;
+  color: var(--text);
+  text-shadow: 0 1px 3px var(--bg), 0 0 4px var(--bg), 0 0 6px var(--bg);
+  white-space: nowrap; text-align: center; transform: translateX(-50%); margin-left: 22px;
 }
 
 /* Легенда сили вітру */
 .legend {
   position: fixed; left: 14px; bottom: 14px; z-index: 600;
-  background: rgba(12, 16, 24, 0.88); backdrop-filter: blur(6px);
+  background: var(--panel); backdrop-filter: blur(6px);
   border: 1px solid var(--line); border-radius: 12px;
   padding: 10px 12px; font-size: .76rem; color: var(--muted);
   display: flex; flex-direction: column; gap: 5px;

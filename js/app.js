@@ -119,6 +119,7 @@ const STORAGE_KEY = "windOblasts";
 
 // Елементи DOM
 const els = {
+  themeBtn: document.getElementById("themeBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
   settingsModal: document.getElementById("settingsModal"),
   oblastList: document.getElementById("oblastList"),
@@ -140,7 +141,28 @@ const els = {
   daily: document.getElementById("daily"),
 };
 
-let map, markersLayer;
+let map, markersLayer, tileLayer;
+
+// ---- Тема ----
+const THEME_KEY = "windTheme";
+const TILES = {
+  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+};
+function getTheme() {
+  return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  els.themeBtn.textContent = theme === "light" ? "🌙" : "☀️";
+  els.themeBtn.title = theme === "light" ? "Темна тема" : "Світла тема";
+  if (tileLayer) tileLayer.setUrl(TILES[theme]);
+}
+function toggleTheme() {
+  const next = getTheme() === "light" ? "dark" : "light";
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
 
 // ---- Допоміжні функції ----
 const COMPASS_16 = [
@@ -241,7 +263,7 @@ async function fetchCurrentBatch(points) {
 // ---- Мапа ----
 function initMap() {
   map = L.map("map", { zoomControl: true, attributionControl: true }).setView([48.7, 37.0], 7);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  tileLayer = L.tileLayer(TILES[getTheme()], {
     attribution: '© OpenStreetMap, © CARTO',
     subdomains: "abcd",
     maxZoom: 18,
@@ -428,8 +450,10 @@ function handleSaveSettings() {
 // ---- Ініціалізація ----
 function init() {
   initMap();
+  applyTheme(getTheme());
   renderMarkers();
 
+  els.themeBtn.addEventListener("click", toggleTheme);
   els.settingsBtn.addEventListener("click", () => {
     buildSettings();
     openModal(els.settingsModal);
