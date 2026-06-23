@@ -22,6 +22,7 @@
       </div>
       <div class="topbar__controls">
         <button id="themeBtn" class="btn-icon" title="Світла тема" aria-label="Перемкнути тему">☀️</button>
+        <button id="citiesBtn" class="btn-icon" title="Міста" aria-label="Керування містами">📍</button>
         <button id="settingsBtn" class="btn-icon" title="Налаштування" aria-label="Налаштування">⚙</button>
       </div>
     </div>
@@ -56,6 +57,28 @@
       <div class="oblast-list" id="oblastList"></div>
       <p class="oblast-counter" id="oblastCounter"></p>
       <button class="btn btn--primary btn--full" id="saveSettings">Зберегти</button>
+    </div>
+  </div>
+
+  <!-- ===== Модальне вікно: КЕРУВАННЯ МІСТАМИ ===== -->
+  <div class="modal" id="citiesModal" hidden>
+    <div class="modal__backdrop" data-close="cities"></div>
+    <div class="modal__box modal__box--narrow" role="dialog" aria-modal="true" aria-labelledby="citiesTitle">
+      <div class="modal__head">
+        <h2 id="citiesTitle">Міста</h2>
+        <button class="modal__close" data-close="cities" aria-label="Закрити">×</button>
+      </div>
+
+      <div class="add-city">
+        <label class="add-city__label" for="citySearchInput">Додати місто за назвою</label>
+        <div class="add-city__row">
+          <input id="citySearchInput" type="text" placeholder="Напр. Ізюм" autocomplete="off" />
+          <button id="citySearchBtn" class="btn btn--primary">Пошук</button>
+        </div>
+        <div id="citySearchResults" class="search-results"></div>
+      </div>
+
+      <div id="citiesManageList" class="manage-list"></div>
     </div>
   </div>
 

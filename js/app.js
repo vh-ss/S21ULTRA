@@ -1,8 +1,8 @@
 // ===== Мапа вітру: інтерактивна мапа з деталізацією по містах =====
 "use strict";
 
-// Локації, згруповані за областями.
-const LOCATIONS = [
+// Вбудовані локації, згруповані за областями.
+const BUILTIN_LOCATIONS = [
   {
     group: "Харківська область",
     points: [
@@ -117,9 +117,52 @@ const LOCATIONS = [
 ];
 
 const API = "https://api.open-meteo.com/v1/forecast";
+const GEO_API = "https://geocoding-api.open-meteo.com/v1/search";
 const MAX_OBLASTS = 3;
 const DEFAULT_OBLASTS = ["Харківська область", "Донецька область"];
 const STORAGE_KEY = "windOblasts";
+const CUSTOM_KEY = "windCustomCities";
+const HIDDEN_KEY = "windHiddenCities";
+const CUSTOM_GROUP = "Мої міста";
+
+// ---- Сховище кастомних і прихованих міст ----
+function readArray(key) {
+  try {
+    const a = JSON.parse(localStorage.getItem(key));
+    return Array.isArray(a) ? a : [];
+  } catch (e) { return []; }
+}
+function getCustomCities() { return readArray(CUSTOM_KEY); }
+function setCustomCities(a) { localStorage.setItem(CUSTOM_KEY, JSON.stringify(a)); }
+function getHidden() { return readArray(HIDDEN_KEY); }
+function setHidden(a) { localStorage.setItem(HIDDEN_KEY, JSON.stringify(a)); }
+function cityKey(group, name) { return `${group}::${name}`; }
+
+// Підсумковий список локацій: вбудовані (без прихованих) + кастомні
+function getLocations() {
+  const hidden = new Set(getHidden());
+  const groups = BUILTIN_LOCATIONS.map((g) => ({
+    group: g.group,
+    points: g.points.filter((p) => !hidden.has(cityKey(g.group, p.name))),
+  }));
+  const custom = getCustomCities().filter((p) => !hidden.has(cityKey(CUSTOM_GROUP, p.name)));
+  if (custom.length) {
+    groups.push({
+      group: CUSTOM_GROUP,
+      points: custom.map((p) => ({ name: p.name, lat: p.lat, lon: p.lon })),
+    });
+  }
+  return groups.filter((g) => g.points.length);
+}
+
+// Пошук міста за назвою (геокодер Open-Meteo)
+async function geocode(name) {
+  const params = new URLSearchParams({ name, count: "6", language: "uk", format: "json" });
+  const res = await fetch(`${GEO_API}?${params}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.results || [];
+}
 
 // Елементи DOM
 const els = {
@@ -129,6 +172,12 @@ const els = {
   oblastList: document.getElementById("oblastList"),
   oblastCounter: document.getElementById("oblastCounter"),
   saveSettings: document.getElementById("saveSettings"),
+  citiesBtn: document.getElementById("citiesBtn"),
+  citiesModal: document.getElementById("citiesModal"),
+  citySearchInput: document.getElementById("citySearchInput"),
+  citySearchBtn: document.getElementById("citySearchBtn"),
+  citySearchResults: document.getElementById("citySearchResults"),
+  citiesManageList: document.getElementById("citiesManageList"),
   brandSub: document.getElementById("brandSub"),
   mapHint: document.getElementById("mapHint"),
   detailModal: document.getElementById("detailModal"),
@@ -298,7 +347,7 @@ async function renderMarkers() {
   markersLayer.clearLayers();
   const selected = getSelectedOblasts();
   const points = [];
-  LOCATIONS.filter((g) => selected.includes(g.group)).forEach((g) => {
+  getLocations().filter((g) => selected.includes(g.group)).forEach((g) => {
     g.points.forEach((p) => points.push(p));
   });
 
@@ -428,7 +477,7 @@ function closeModal(modal) { modal.hidden = true; }
 // ---- Налаштування: побудова списку ----
 function buildSettings() {
   const selected = getSelectedOblasts();
-  els.oblastList.innerHTML = LOCATIONS.map((g) => {
+  els.oblastList.innerHTML = getLocations().map((g) => {
     const checked = selected.includes(g.group);
     return `
       <label class="oblast-item ${checked ? "is-checked" : ""}">
@@ -470,6 +519,115 @@ function handleSaveSettings() {
   closeModal(els.settingsModal);
 }
 
+// ---- Керування містами ----
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function openCities() {
+  els.citySearchInput.value = "";
+  els.citySearchResults.innerHTML = "";
+  buildManageList();
+  openModal(els.citiesModal);
+}
+
+async function handleCitySearch() {
+  const name = els.citySearchInput.value.trim();
+  if (!name) return;
+  els.citySearchResults.innerHTML = `<p class="search-note">Пошук…</p>`;
+  try {
+    const results = await geocode(name);
+    if (!results.length) {
+      els.citySearchResults.innerHTML = `<p class="search-note">Нічого не знайдено</p>`;
+      return;
+    }
+    const existing = new Set(getCustomCities().map((c) => c.name));
+    els.citySearchResults.innerHTML = results.map((r, i) => {
+      const sub = [r.admin1, r.country].filter(Boolean).join(", ");
+      const added = existing.has(r.name);
+      return `
+        <div class="result-item">
+          <div class="result-item__info">
+            <div class="result-item__name">${escapeHtml(r.name)}</div>
+            <div class="result-item__sub">${escapeHtml(sub)}</div>
+          </div>
+          <button class="result-item__add" data-idx="${i}" ${added ? "disabled" : ""}>${added ? "Додано" : "+ Додати"}</button>
+        </div>`;
+    }).join("");
+    els.citySearchResults.querySelectorAll(".result-item__add").forEach((btn) => {
+      btn.addEventListener("click", () => addCustomCity(results[+btn.dataset.idx], btn));
+    });
+  } catch (err) {
+    console.error(err);
+    els.citySearchResults.innerHTML = `<p class="search-note is-error">Помилка пошуку. Перевірте зʼєднання.</p>`;
+  }
+}
+
+function addCustomCity(result, btn) {
+  const list = getCustomCities();
+  if (list.some((c) => c.name === result.name)) return;
+  list.push({ name: result.name, lat: result.latitude, lon: result.longitude });
+  setCustomCities(list);
+  // Прибрати з прихованих, якщо колись ховали
+  setHidden(getHidden().filter((k) => k !== cityKey(CUSTOM_GROUP, result.name)));
+  // Увімкнути групу «Мої міста», якщо є вільне місце
+  const sel = getSelectedOblasts();
+  if (!sel.includes(CUSTOM_GROUP) && sel.length < MAX_OBLASTS) {
+    saveSelectedOblasts([...sel, CUSTOM_GROUP]);
+  }
+  if (btn) { btn.disabled = true; btn.textContent = "Додано"; }
+  renderMarkers();
+  buildManageList();
+}
+
+function removeCity(group, name) {
+  if (group === CUSTOM_GROUP) {
+    setCustomCities(getCustomCities().filter((c) => c.name !== name));
+  } else {
+    const hidden = getHidden();
+    const key = cityKey(group, name);
+    if (!hidden.includes(key)) setHidden([...hidden, key]);
+  }
+  renderMarkers();
+  buildManageList();
+}
+
+function restoreCity(group, name) {
+  setHidden(getHidden().filter((k) => k !== cityKey(group, name)));
+  renderMarkers();
+  buildManageList();
+}
+
+function buildManageList() {
+  const hidden = new Set(getHidden());
+  const groups = BUILTIN_LOCATIONS.map((g) => ({ group: g.group, points: g.points, builtin: true }));
+  const custom = getCustomCities();
+  if (custom.length) groups.push({ group: CUSTOM_GROUP, points: custom, builtin: false });
+
+  els.citiesManageList.innerHTML = groups.map((g) => {
+    const rows = g.points.map((p) => {
+      const isHidden = hidden.has(cityKey(g.group, p.name));
+      const tag = g.builtin ? "" : `<span class="manage-city__tag">моє</span>`;
+      const btn = isHidden
+        ? `<button class="manage-city__btn manage-city__btn--restore" title="Повернути" data-act="restore" data-group="${escapeHtml(g.group)}" data-name="${escapeHtml(p.name)}">↺</button>`
+        : `<button class="manage-city__btn" title="Видалити" data-act="remove" data-group="${escapeHtml(g.group)}" data-name="${escapeHtml(p.name)}">✕</button>`;
+      return `
+        <div class="manage-city ${isHidden ? "is-hidden" : ""}">
+          <span class="manage-city__name">${escapeHtml(p.name)}</span>${tag}${btn}
+        </div>`;
+    }).join("");
+    return `<div class="manage-group"><div class="manage-group__title">${escapeHtml(g.group)}</div>${rows}</div>`;
+  }).join("");
+
+  els.citiesManageList.querySelectorAll(".manage-city__btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { act, group, name } = btn.dataset;
+      if (act === "remove") removeCity(group, name);
+      else restoreCity(group, name);
+    });
+  });
+}
+
 // ---- Ініціалізація ----
 function init() {
   buildCompassDial();
@@ -484,16 +642,25 @@ function init() {
   });
   els.saveSettings.addEventListener("click", handleSaveSettings);
 
+  els.citiesBtn.addEventListener("click", openCities);
+  els.citySearchBtn.addEventListener("click", handleCitySearch);
+  els.citySearchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleCitySearch();
+  });
+
   // Закриття модалок (хрестик, фон)
+  const modalByKey = {
+    settings: els.settingsModal,
+    cities: els.citiesModal,
+    detail: els.detailModal,
+  };
   document.querySelectorAll("[data-close]").forEach((el) => {
-    el.addEventListener("click", () => {
-      const which = el.dataset.close;
-      closeModal(which === "settings" ? els.settingsModal : els.detailModal);
-    });
+    el.addEventListener("click", () => closeModal(modalByKey[el.dataset.close]));
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeModal(els.settingsModal);
+      closeModal(els.citiesModal);
       closeModal(els.detailModal);
     }
   });
