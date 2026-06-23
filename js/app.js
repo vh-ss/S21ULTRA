@@ -192,25 +192,38 @@ function forceColor(ms) {
   return "#f87171";                 // шторм — червоний
 }
 
-function makeIcon(point, speed) {
+// Маркер = SVG: кольорове коло зі швидкістю + стрілка напрямку вітру
+function makeIcon(point, speed, dir) {
   const color = forceColor(speed);
-  const label = typeof speed === "number" ? fmt(speed, 0) : "";
+  const hasSpeed = typeof speed === "number";
+  const label = hasSpeed ? fmt(speed, 0) : "";
+  // Стрілка показує, КУДИ дме вітер (dir + 180), як на компасі
+  const arrow = hasSpeed && typeof dir === "number"
+    ? `<g transform="rotate(${dir + 180} 22 22)">
+         <line x1="22" y1="19" x2="22" y2="5" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+         <polygon points="22,1 16.5,10 27.5,10" fill="#fff"/>
+       </g>`
+    : "";
   return L.divIcon({
     className: "city-marker",
     html:
-      `<span class="city-marker__dot" style="background:${color}">${label}</span>` +
+      `<svg class="city-marker__svg" width="44" height="44" viewBox="0 0 44 44">
+         ${arrow}
+         <circle cx="22" cy="22" r="11" fill="${color}" stroke="#fff" stroke-width="2"/>
+         <text x="22" y="26" text-anchor="middle" class="city-marker__num">${label}</text>
+       </svg>` +
       `<span class="city-marker__label">${point.name}</span>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
-// Пакетний запит поточної швидкості вітру для всіх точок (один виклик API)
+// Пакетний запит поточного вітру (швидкість + напрямок) для всіх точок — один виклик API
 async function fetchCurrentBatch(points) {
   const params = new URLSearchParams({
     latitude: points.map((p) => p.lat).join(","),
     longitude: points.map((p) => p.lon).join(","),
-    current: "wind_speed_10m",
+    current: "wind_speed_10m,wind_direction_10m",
     wind_speed_unit: "ms",
     timezone: "auto",
   });
@@ -218,7 +231,11 @@ async function fetchCurrentBatch(points) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   const arr = Array.isArray(data) ? data : [data];
-  return arr.map((d) => (d && d.current ? d.current.wind_speed_10m : undefined));
+  return arr.map((d) =>
+    d && d.current
+      ? { speed: d.current.wind_speed_10m, dir: d.current.wind_direction_10m }
+      : {}
+  );
 }
 
 // ---- Мапа ----
@@ -242,7 +259,7 @@ async function renderMarkers() {
 
   // Спершу нейтральні маркери, щоб мапа була інтерактивна одразу
   const markers = points.map((p) => {
-    const m = L.marker([p.lat, p.lon], { icon: makeIcon(p, undefined), title: p.name }).addTo(markersLayer);
+    const m = L.marker([p.lat, p.lon], { icon: makeIcon(p), title: p.name }).addTo(markersLayer);
     m.on("click", () => openDetail(p));
     return { m, p };
   });
@@ -256,8 +273,8 @@ async function renderMarkers() {
   if (!points.length) return;
   els.mapHint.textContent = "Завантаження вітру…";
   try {
-    const speeds = await fetchCurrentBatch(points);
-    markers.forEach(({ m, p }, i) => m.setIcon(makeIcon(p, speeds[i])));
+    const wind = await fetchCurrentBatch(points);
+    markers.forEach(({ m, p }, i) => m.setIcon(makeIcon(p, wind[i].speed, wind[i].dir)));
     els.mapHint.textContent = "Натисніть на місто, щоб побачити деталі вітру";
   } catch (err) {
     console.error(err);

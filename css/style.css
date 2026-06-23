@@ -64,19 +64,20 @@ body {
 
 /* Маркер міста */
 .city-marker { background: none; border: none; }
-.city-marker__dot {
-  display: flex; align-items: center; justify-content: center;
-  min-width: 26px; height: 26px; padding: 0 5px; border-radius: 13px;
-  background: var(--muted); color: #0a0f17; font-weight: 800; font-size: .76rem;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  margin: 0 auto; transition: transform .15s;
+.city-marker__svg {
+  display: block; margin: 0 auto; overflow: visible;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75));
+  transition: transform .15s;
 }
-.city-marker:hover .city-marker__dot { transform: scale(1.18); }
+.city-marker:hover .city-marker__svg { transform: scale(1.15); }
+.city-marker__num {
+  fill: #0a0f17; font-size: 11px; font-weight: 800;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
 .city-marker__label {
-  display: block; margin-top: 3px; font-size: .72rem; font-weight: 600;
+  display: block; margin-top: 1px; font-size: .72rem; font-weight: 600;
   color: #fff; text-shadow: 0 1px 4px #000, 0 0 6px #000; white-space: nowrap;
-  text-align: center; transform: translateX(-50%); margin-left: 13px;
+  text-align: center; transform: translateX(-50%); margin-left: 22px;
 }
 
 /* Легенда сили вітру */
