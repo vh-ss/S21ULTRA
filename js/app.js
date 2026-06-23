@@ -150,9 +150,9 @@ const COMPASS_16 = [
 function dirName(deg) {
   return COMPASS_16[Math.round((deg % 360) / 22.5) % 16];
 }
-// Стрілка вказує НА ДЖЕРЕЛО вітру (звідки дме), як флюгер:
-// 0° (з півночі) → ↑, 90° (зі сходу) → →, 180° (з півдня) → ↓, 270° (із заходу) → ←
-const ARROWS_8 = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
+// Стрілка вказує КУДИ дме вітер (напрямок руху повітря):
+// вітер З півночі (0°) рухається на південь → ↓
+const ARROWS_8 = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"];
 function windArrow(fromDeg) {
   return ARROWS_8[Math.round((fromDeg % 360) / 45) % 8];
 }
@@ -183,6 +183,44 @@ function saveSelectedOblasts(arr) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, MAX_OBLASTS)));
 }
 
+// Колір маркера за швидкістю вітру (м/с)
+function forceColor(ms) {
+  if (typeof ms !== "number" || Number.isNaN(ms)) return "#8b97ab"; // нейтральний
+  if (ms < 3.4) return "#22d3a6";   // штиль/легкий — зелений
+  if (ms < 8.0) return "#38bdf8";   // помірний — блакитний
+  if (ms < 13.9) return "#fbbf24";  // сильний — жовтий
+  return "#f87171";                 // шторм — червоний
+}
+
+function makeIcon(point, speed) {
+  const color = forceColor(speed);
+  const label = typeof speed === "number" ? fmt(speed, 0) : "";
+  return L.divIcon({
+    className: "city-marker",
+    html:
+      `<span class="city-marker__dot" style="background:${color}">${label}</span>` +
+      `<span class="city-marker__label">${point.name}</span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+// Пакетний запит поточної швидкості вітру для всіх точок (один виклик API)
+async function fetchCurrentBatch(points) {
+  const params = new URLSearchParams({
+    latitude: points.map((p) => p.lat).join(","),
+    longitude: points.map((p) => p.lon).join(","),
+    current: "wind_speed_10m",
+    wind_speed_unit: "ms",
+    timezone: "auto",
+  });
+  const res = await fetch(`${API}?${params}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const arr = Array.isArray(data) ? data : [data];
+  return arr.map((d) => (d && d.current ? d.current.wind_speed_10m : undefined));
+}
+
 // ---- Мапа ----
 function initMap() {
   map = L.map("map", { zoomControl: true, attributionControl: true }).setView([48.7, 37.0], 7);
@@ -194,32 +232,37 @@ function initMap() {
   markersLayer = L.layerGroup().addTo(map);
 }
 
-function renderMarkers() {
+async function renderMarkers() {
   markersLayer.clearLayers();
   const selected = getSelectedOblasts();
-  const groups = LOCATIONS.filter((g) => selected.includes(g.group));
-  const bounds = [];
-
-  groups.forEach((g) => {
-    g.points.forEach((p) => {
-      const icon = L.divIcon({
-        className: "city-marker",
-        html: `<span class="city-marker__dot"></span><span class="city-marker__label">${p.name}</span>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      });
-      const m = L.marker([p.lat, p.lon], { icon, title: p.name }).addTo(markersLayer);
-      m.on("click", () => openDetail(p));
-      bounds.push([p.lat, p.lon]);
-    });
+  const points = [];
+  LOCATIONS.filter((g) => selected.includes(g.group)).forEach((g) => {
+    g.points.forEach((p) => points.push(p));
   });
 
-  if (bounds.length) {
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 9 });
-  }
+  // Спершу нейтральні маркери, щоб мапа була інтерактивна одразу
+  const markers = points.map((p) => {
+    const m = L.marker([p.lat, p.lon], { icon: makeIcon(p, undefined), title: p.name }).addTo(markersLayer);
+    m.on("click", () => openDetail(p));
+    return { m, p };
+  });
 
-  // Підпис у шапці
+  if (points.length) {
+    map.fitBounds(points.map((p) => [p.lat, p.lon]), { padding: [60, 60], maxZoom: 9 });
+  }
   els.brandSub.textContent = selected.join(" · ");
+
+  // Потім підвантажуємо швидкість і розфарбовуємо
+  if (!points.length) return;
+  els.mapHint.textContent = "Завантаження вітру…";
+  try {
+    const speeds = await fetchCurrentBatch(points);
+    markers.forEach(({ m, p }, i) => m.setIcon(makeIcon(p, speeds[i])));
+    els.mapHint.textContent = "Натисніть на місто, щоб побачити деталі вітру";
+  } catch (err) {
+    console.error(err);
+    els.mapHint.textContent = "Не вдалося завантажити швидкість вітру для мапи";
+  }
 }
 
 // ---- Запит даних ----
@@ -248,8 +291,8 @@ function renderCurrent(data) {
   els.gust.textContent = `${fmt(c.wind_gusts_10m)} м/с`;
   els.force.textContent = force.txt;
   els.force.className = `meta__value ${force.cls}`;
-  // Стрілка дивиться на джерело вітру (звідки дме)
-  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m}deg)`;
+  // Стрілка показує, куди дме вітер (напрямок руху повітря)
+  els.arrow.style.transform = `translate(-50%, -50%) rotate(${c.wind_direction_10m + 180}deg)`;
   const t = new Date(c.time);
   els.updated.textContent = `Оновлено: ${t.toLocaleString("uk-UA", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 }
